@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Paper TA · BINANCE:BTCUSDT</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="paper-banner" role="status">
+    Paper only — no live orders, no exchange keys.
+  </header>
+
+  <main>
+    <p class="eyebrow"><a href="../">← Sandbox</a></p>
+    <h1>Paper TA board</h1>
+    <p class="lede">Second-opinion technicals for a symbol. Not advice.</p>
+
+    <form id="symbol-form" class="symbol-bar" autocomplete="off">
+      <label class="sr-only" for="symbol">Symbol</label>
+      <input id="symbol" name="symbol" type="text" inputmode="text" spellcheck="false" autocapitalize="characters" value="BINANCE:BTCUSDT">
+      <button type="submit">Load</button>
+    </form>
+
+    <div class="chips" id="chips">
+      <button type="button" data-symbol="BINANCE:BTCUSDT">BTC</button>
+      <button type="button" data-symbol="BINANCE:ETHUSDT">ETH</button>
+      <button type="button" data-symbol="BINANCE:SOLUSDT">SOL</button>
+      <button type="button" data-symbol="BINANCE:BNBUSDT">BNB</button>
+    </div>
+
+    <div class="intervals" id="intervals" role="tablist" aria-label="Interval">
+      <button type="button" data-interval="15m">15m</button>
+      <button type="button" data-interval="1h" class="is-on">1h</button>
+      <button type="button" data-interval="4h">4h</button>
+      <button type="button" data-interval="1d">1D</button>
+    </div>
+
+    <section class="status-row" aria-live="polite">
+      <span id="data-badge" class="badge badge-wait">Loading</span>
+      <span id="meta" class="meta">Fetching public candles…</span>
+    </section>
+
+    <section class="consensus" id="consensus">
+      <p class="consensus-kicker">Consensus</p>
+      <p class="consensus-call" id="call">—</p>
+      <p class="consensus-counts" id="counts">—</p>
+      <div class="bar" aria-hidden="true">
+        <span id="bar-buy"></span>
+        <span id="bar-neu"></span>
+        <span id="bar-sell"></span>
+      </div>
+      <svg id="spark" class="spark" viewBox="0 0 320 64" preserveAspectRatio="none" role="img" aria-label="Close price sparkline"></svg>
+    </section>
+
+    <section>
+      <h2>Oscillators</h2>
+      <ul class="rows" id="osc-rows"></ul>
+    </section>
+
+    <section>
+      <h2>Moving averages</h2>
+      <ul class="rows" id="ma-rows"></ul>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
