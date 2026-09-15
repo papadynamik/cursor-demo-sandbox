@@ -2,9 +2,9 @@
   const DEFAULT_SYMBOL = "BINANCE:BTCUSDT";
   const LIMIT = 200;
   const ENDPOINTS = [
-    "https://api.binance.com/api/v3/klines",
     "https://data-api.binance.vision/api/v3/klines",
     "https://api.binance.us/api/v3/klines",
+    "https://api.binance.com/api/v3/klines",
   ];
 
   const form = document.getElementById("symbol-form");
@@ -105,7 +105,7 @@
     for (let i = 0; i < ENDPOINTS.length; i++) {
       const url = ENDPOINTS[i] + "?symbol=" + encodeURIComponent(pair) + "&interval=" + tf + "&limit=" + LIMIT;
       try {
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
         if (!res.ok) {
           lastErr = new Error("HTTP " + res.status);
           continue;
