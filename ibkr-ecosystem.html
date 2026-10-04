@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>IBKR ecosystem — mind map for an ib_insync bot</title>
 <style>
   :root {
@@ -23,6 +23,12 @@
   html, body { height: 100%; }
   body {
     margin: 0;
+    height: 100dvh;
+    height: 100svh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    -webkit-text-size-adjust: 100%;
     background:
       radial-gradient(1200px 500px at 10% -10%, rgba(110, 168, 254, 0.12), transparent 55%),
       radial-gradient(900px 420px at 100% 0%, rgba(61, 190, 138, 0.08), transparent 50%),
@@ -34,6 +40,7 @@
     display: flex;
     align-items: center;
     gap: 1.25rem;
+    flex: none;
     padding: 0.75rem 1.1rem 0.35rem;
   }
   .brand { min-width: 0; }
@@ -63,16 +70,17 @@
     outline: 2px solid var(--amber);
     outline-offset: 2px;
   }
-  .view { display: flex; flex-direction: column; height: calc(100% - 58px); min-height: 0; }
+  .view { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: auto; }
   .view[hidden] { display: none; }
   .toolbar {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.45rem;
     align-items: center;
     padding: 0.35rem 1.1rem 0.55rem;
   }
   #q {
-    flex: 1;
+    flex: 1 1 12rem;
     min-width: 8rem;
     background: #0e1520;
     color: var(--text);
@@ -80,6 +88,7 @@
     border-radius: 999px;
     padding: 0.45rem 0.9rem;
     font: inherit;
+    font-size: 16px;
   }
   #count { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
   .legend {
@@ -98,12 +107,14 @@
     margin-right: 0.28rem;
   }
   .gotchas {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    display: flex;
     gap: 0.45rem;
     padding: 0 1.1rem 0.6rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .gotchas button {
+    flex: 1 0 11.5rem;
     text-align: left;
     background: var(--hot-bg);
     color: var(--text);
@@ -126,11 +137,43 @@
     margin-bottom: 0.15rem;
   }
   .gotchas span { display: block; font-size: 0.75rem; color: #f3d7d0; }
+  .map-stage {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+  }
   #map {
-    flex: 1;
+    display: block;
     width: 100%;
-    min-height: 280px;
+    height: 100%;
+    touch-action: none;
     background: linear-gradient(180deg, rgba(18, 25, 34, 0.2), transparent 80px);
+    --markmap-text-color: #e7eef7;
+    --markmap-code-color: #e7eef7;
+    --markmap-code-bg: #1a2433;
+    --markmap-circle-open-bg: #0b1016;
+    --markmap-a-color: #9ec1ff;
+    --markmap-font: 400 16px/21px "Segoe UI", system-ui, sans-serif;
+  }
+  /* iOS Safari drops SVG foreignObject labels that stay inline-block. */
+  #map .markmap-foreign {
+    display: block;
+    overflow: visible;
+    color: #e7eef7;
+  }
+  #map-error {
+    display: none;
+    position: absolute;
+    left: 1rem;
+    right: 1rem;
+    top: 1rem;
+    margin: 0;
+    padding: 0.75rem 0.85rem;
+    color: #ffb4a4;
+    background: var(--hot-bg);
+    border: 1px solid rgba(255, 107, 74, 0.55);
+    border-radius: 10px;
   }
   .markmap-foreign.gotcha div {
     background: var(--hot-bg);
@@ -143,6 +186,7 @@
     border-radius: 8px;
   }
   .sources {
+    flex: none;
     padding: 0.2rem 1.1rem 0.7rem;
     color: var(--muted);
     font-size: 0.72rem;
@@ -170,12 +214,14 @@
   .k { color: #c084fc; }
   .s { color: #8fd6b0; }
   .n { color: #f0b429; }
-  @media (max-width: 980px) {
-    header { flex-wrap: wrap; }
+  @media (min-width: 980px) {
+    .gotchas button { flex: 1 1 0; }
+  }
+  @media (max-width: 979px) {
+    header { flex-wrap: wrap; align-items: flex-start; }
     .tabs { margin-left: 0; }
-    .gotchas { grid-template-columns: 1fr; }
-    .view { height: auto; min-height: calc(100% - 90px); }
-    #map { height: 70vh; }
+    .brand p { font-size: 0.78rem; }
+    #q { flex-basis: 100%; }
   }
 </style>
 </head>
@@ -205,10 +251,34 @@
     <span><i style="background:#c084fc"></i>Contract</span>
     <span><i style="background:#f0b429"></i>Capabilities</span>
     <span><i style="background:#ff6b4a"></i>Gotcha</span>
-    <span>Click a node to fold it. Drag to pan, scroll to zoom.</span>
+    <span>Tap a node to fold it. Drag to pan, pinch or scroll to zoom.</span>
   </div>
-  <div class="gotchas" id="gotchas"></div>
-  <svg id="map" aria-label="IBKR mind map"></svg>
+  <div class="gotchas" id="gotchas">
+    <button type="button" data-query="Futures skip SMART">
+      <strong>Futures skip SMART</strong>
+      <span>FUT and FOP need the native exchange — CME, CBOT, NYMEX, COMEX, EUREX — or the quote comes back empty.</span>
+    </button>
+    <button type="button" data-query="100 lines">
+      <strong>100 lines → 50 / sec</strong>
+      <span>Default market-data lines are 100. Pacing is lines ÷ 2. Quote boosters raise the ceiling.</span>
+    </button>
+    <button type="button" data-query="Callbacks, not REST">
+      <strong>Callbacks, not REST</strong>
+      <span>TWS API is a socket of callbacks. ib_insync turns that into async / await.</span>
+    </button>
+    <button type="button" data-query="Streams die">
+      <strong>Web streams die</strong>
+      <span>Web API smd quotes stop after about 15 minutes. Re-request by 10 minutes.</span>
+    </button>
+    <button type="button" data-query="subscription for that user">
+      <strong>Subscribe per user</strong>
+      <span>Live quotes need a market-data subscription on that username. Forex and crypto are the exception.</span>
+    </button>
+  </div>
+  <div class="map-stage">
+    <svg id="map" aria-label="IBKR mind map"></svg>
+    <p id="map-error" role="alert"></p>
+  </div>
   <p class="sources">
     Sources: TWS API and Web API indexes, Global Access, the order-types catalog (the order-type exchanges URL now redirects there), Feature Explorer, product pages linked from Global Access, and the contract, pacing, and market-data docs those indexes point at.
     Feature Explorer says 160 markets; Global Access says 170+. Both are shown.
@@ -418,63 +488,98 @@
 - Display groups let an API client push a symbol into a TWS window
 </script>
 
-<script type="module">
-import { Transformer } from "https://cdn.jsdelivr.net/npm/markmap-lib@0.18.12/+esm";
-import { Markmap } from "https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/+esm";
-
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-view@0.18.12"></script>
+<script src="https://cdn.jsdelivr.net/npm/markmap-lib@0.18.12"></script>
+<script>
+const libs = window.markmap || {};
+const Transformer = libs.Transformer;
+const Markmap = libs.Markmap;
 const COLORS = ["#6ea8fe", "#3dbe8a", "#c084fc", "#f0b429"];
-const GOTCHAS = [
-  {
-    title: "Futures skip SMART",
-    text: "FUT and FOP need the native exchange — CME, CBOT, NYMEX, COMEX, EUREX — or the quote comes back empty.",
-    query: "Futures skip SMART"
-  },
-  {
-    title: "100 lines → 50 / sec",
-    text: "Default market-data lines are 100. Pacing is lines ÷ 2. Quote boosters raise the ceiling.",
-    query: "100 lines"
-  },
-  {
-    title: "Callbacks, not REST",
-    text: "TWS API is a socket of callbacks. ib_insync turns that into async / await.",
-    query: "Callbacks, not REST"
-  },
-  {
-    title: "Web streams die",
-    text: "Web API smd quotes stop after about 15 minutes. Re-request by 10 minutes.",
-    query: "Streams die"
-  },
-  {
-    title: "Subscribe per user",
-    text: "Live quotes need a market-data subscription on that username. Forex and crypto are the exception.",
-    query: "subscription for that user"
-  }
-];
+const LABEL_FONT = '400 16px/21px "Segoe UI", system-ui, sans-serif';
 
-const md = document.getElementById("md").textContent;
-const transformer = new Transformer();
-const { root } = transformer.transform(md);
 const svg = document.getElementById("map");
-const mm = Markmap.create(svg, {
-  duration: 280,
-  maxWidth: 340,
-  paddingX: 12,
-  spacingVertical: 6,
-  fitRatio: 0.92,
-  color: (node) => {
-    const text = node.content || "";
-    if (text.includes("GOTCHA")) return "#ff6b4a";
-    const path = (node.state && node.state.path) || "";
-    const branch = Number(String(path).split(".")[1] || 0);
-    return COLORS[branch] || COLORS[0];
-  },
-  colorFreezeLevel: 2
-}, root);
-
+const stage = svg.closest(".map-stage");
+const errEl = document.getElementById("map-error");
 const qInput = document.getElementById("q");
 const countEl = document.getElementById("count");
-let openDepth = 2;
+const narrowQuery = window.matchMedia("(max-width: 800px)");
+
+let mm = null;
+let root = null;
+let openDepth = narrowQuery.matches ? 1 : 2;
 let query = "";
+
+function report(message) {
+  errEl.style.display = "block";
+  errEl.textContent = message;
+}
+
+function measureLabel(html, maxWidth) {
+  let probe = document.getElementById("label-probe");
+  if (!probe) {
+    probe = document.createElement("div");
+    probe.id = "label-probe";
+    probe.setAttribute("aria-hidden", "true");
+    document.body.appendChild(probe);
+  }
+  probe.style.cssText = "position:absolute;left:-10000px;top:0;visibility:hidden;pointer-events:none;";
+  const outer = document.createElement("div");
+  outer.style.cssText = "text-align:left;font:" + LABEL_FONT + ";width:" + maxWidth + "px;";
+  const inner = document.createElement("div");
+  inner.style.cssText = "display:inline-block;white-space:normal;";
+  inner.innerHTML = html || "";
+  outer.appendChild(inner);
+  probe.replaceChildren(outer);
+  return {
+    width: Math.max(inner.scrollWidth, 8),
+    height: Math.max(inner.scrollHeight, 16)
+  };
+}
+
+function installMeasureFallback() {
+  const orig = Markmap.prototype._relayout;
+  if (orig.__sized) return;
+  function patched() {
+    const maxWidth = this.options.maxWidth || 340;
+    this.g.selectAll(".markmap-foreign").each(function (d) {
+      const inner = this.firstElementChild && this.firstElementChild.firstElementChild;
+      if (!inner || !d) return;
+      if (inner.scrollWidth >= 2 && inner.scrollHeight >= 2) return;
+      const box = measureLabel(d.content, maxWidth);
+      Object.defineProperty(inner, "scrollWidth", { configurable: true, get: () => box.width });
+      Object.defineProperty(inner, "scrollHeight", { configurable: true, get: () => box.height });
+    });
+    return orig.call(this);
+  }
+  patched.__sized = true;
+  Markmap.prototype._relayout = patched;
+}
+
+function sizeSvg() {
+  const rect = stage.getBoundingClientRect();
+  const width = Math.max(0, Math.round(rect.width));
+  const height = Math.max(0, Math.round(rect.height));
+  if (width >= 2 && height >= 2) {
+    if (svg.getAttribute("width") !== String(width)) svg.setAttribute("width", String(width));
+    if (svg.getAttribute("height") !== String(height)) svg.setAttribute("height", String(height));
+  }
+  return { width, height };
+}
+
+function safeFit() {
+  if (!mm || document.getElementById("view-map").hidden) return;
+  const { width, height } = sizeSvg();
+  if (width < 2 || height < 2) return;
+  const rect = mm.state && mm.state.rect;
+  if (!rect) return;
+  if (!(rect.x2 - rect.x1 > 1) || !(rect.y2 - rect.y1 > 1)) return;
+  return mm.fit();
+}
+
+function scheduleFit() {
+  requestAnimationFrame(() => requestAnimationFrame(() => safeFit()));
+}
 
 function clone(node) {
   return {
@@ -494,12 +599,15 @@ function applyFold(node, depth, pred) {
   const kids = node.children || [];
   let self = pred(node);
   let below = false;
+  const kept = [];
   for (const child of kids) {
-    if (applyFold(child, depth + 1, pred)) below = true;
+    const hit = applyFold(child, depth + 1, pred);
+    if (hit) below = true;
+    if (!query || !narrowQuery.matches || hit) kept.push(child);
   }
-  const keep = !query || self || below || depth === 0;
+  if (query && narrowQuery.matches) node.children = kept;
   node.payload = node.payload || {};
-  if (query) node.payload.fold = keep ? (below ? 0 : 1) : 1;
+  if (query) node.payload.fold = below ? 0 : 1;
   else node.payload.fold = depth >= openDepth && kids.length ? 1 : 0;
   if (depth === 0) node.payload.fold = 0;
   return self || below;
@@ -515,6 +623,7 @@ function decorate() {
 }
 
 async function render() {
+  if (!mm || !root) return 0;
   const data = clone(root);
   const needle = query.trim().toLowerCase();
   let hits = 0;
@@ -526,29 +635,37 @@ async function render() {
   await mm.setData(data);
   decorate();
   countEl.textContent = needle ? (hits ? hits + " match" + (hits === 1 ? "" : "es") : "No matches") : "";
-  if (needle && hits) mm.fit();
+  if (needle && hits) scheduleFit();
+  return hits;
 }
 
-const mo = new MutationObserver(() => decorate());
-mo.observe(svg, { subtree: true, childList: true });
+function clearQuery() {
+  query = "";
+  qInput.value = "";
+  document.querySelectorAll("#gotchas button").forEach((b) => b.classList.remove("active"));
+}
 
 document.getElementById("expand").addEventListener("click", () => {
-  query = "";
-  qInput.value = "";
+  if (!mm) return;
+  clearQuery();
   openDepth = 99;
-  render();
+  render().then(() => scheduleFit());
 });
 document.getElementById("collapse").addEventListener("click", () => {
-  query = "";
-  qInput.value = "";
+  if (!mm) return;
+  clearQuery();
   openDepth = 1;
-  render().then(() => mm.fit());
+  render().then(() => scheduleFit());
 });
-document.getElementById("fit").addEventListener("click", () => mm.fit());
+document.getElementById("fit").addEventListener("click", () => scheduleFit());
 qInput.addEventListener("input", () => {
+  if (!mm) return;
   query = qInput.value;
+  document.querySelectorAll("#gotchas button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.query === query);
+  });
   render().then(() => {
-    if (!query.trim()) mm.fit();
+    if (!query.trim()) scheduleFit();
   });
 });
 document.addEventListener("keydown", (ev) => {
@@ -558,23 +675,17 @@ document.addEventListener("keydown", (ev) => {
   }
 });
 
-const rail = document.getElementById("gotchas");
-for (const g of GOTCHAS) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.innerHTML = "<strong></strong><span></span>";
-  btn.querySelector("strong").textContent = g.title;
-  btn.querySelector("span").textContent = g.text;
+document.querySelectorAll("#gotchas button").forEach((btn) => {
   btn.addEventListener("click", () => {
+    if (!mm) return;
     document.querySelectorAll("#gotchas button").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     show("map");
-    qInput.value = g.query;
-    query = g.query;
+    qInput.value = btn.dataset.query || "";
+    query = qInput.value;
     render();
   });
-  rail.appendChild(btn);
-}
+});
 
 function show(which) {
   const map = which === "map";
@@ -584,10 +695,64 @@ function show(which) {
   document.getElementById("tab-bot").classList.toggle("active", !map);
   document.getElementById("tab-map").setAttribute("aria-pressed", String(map));
   document.getElementById("tab-bot").setAttribute("aria-pressed", String(!map));
-  if (map) requestAnimationFrame(() => mm.fit());
+  if (map) scheduleFit();
 }
 document.getElementById("tab-map").addEventListener("click", () => show("map"));
 document.getElementById("tab-bot").addEventListener("click", () => show("bot"));
+
+function bootMap() {
+  if (!window.d3 || !Transformer || !Markmap) {
+    report("The mind map did not load. Reload the page once the connection can reach the script host.");
+    return;
+  }
+  try {
+    installMeasureFallback();
+    const built = new Transformer().transform(document.getElementById("md").textContent);
+    root = built.root;
+    const narrow = narrowQuery.matches;
+    sizeSvg();
+    mm = Markmap.create(svg, {
+      duration: narrow ? 0 : 200,
+      maxWidth: narrow ? 220 : 340,
+      paddingX: 12,
+      spacingVertical: narrow ? 8 : 6,
+      fitRatio: narrow ? 0.86 : 0.92,
+      color: (node) => {
+        const text = node.content || "";
+        if (text.includes("GOTCHA")) return "#ff6b4a";
+        const path = (node.state && node.state.path) || "";
+        const branch = Number(String(path).split(".")[1] || 0);
+        return COLORS[branch] || COLORS[0];
+      },
+      colorFreezeLevel: 2
+    });
+    const mo = new MutationObserver(() => decorate());
+    mo.observe(svg, { subtree: true, childList: true });
+  } catch (err) {
+    mm = null;
+    report("The mind map could not be drawn in this browser. Reload and try again.");
+    return;
+  }
+  render().then(() => scheduleFit());
+}
+
+let resizeTimer = 0;
+let lastBox = "";
+function onViewportChange() {
+  const rect = stage.getBoundingClientRect();
+  const next = Math.round(rect.width) + "x" + Math.round(rect.height);
+  if (next === lastBox) return;
+  lastBox = next;
+  window.clearTimeout(resizeTimer);
+  resizeTimer = window.setTimeout(scheduleFit, 80);
+}
+window.addEventListener("resize", onViewportChange);
+window.addEventListener("orientationchange", () => {
+  lastBox = "";
+  onViewportChange();
+});
+if (window.visualViewport) window.visualViewport.addEventListener("resize", onViewportChange);
+if (window.ResizeObserver) new ResizeObserver(onViewportChange).observe(stage);
 
 const PYTHON = `# Minimal paper-trading skeleton for ib_insync.
 # Talks only to a local IB Gateway. Do not put a login or an account id in this file.
@@ -709,7 +874,7 @@ document.getElementById("copy").addEventListener("click", async () => {
   setTimeout(() => { document.getElementById("copy").textContent = "Copy"; }, 1400);
 });
 
-render().then(() => mm.fit());
+bootMap();
 </script>
 </body>
 </html>
