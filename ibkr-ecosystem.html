@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IBKR ecosystem — mind map for an ib_insync bot</title>
+<style>
+  :root {
+    --bg: #0b1016;
+    --bg-2: #121922;
+    --line: #243041;
+    --text: #e7eef7;
+    --muted: #8ea0b5;
+    --blue: #6ea8fe;
+    --green: #3dbe8a;
+    --violet: #c084fc;
+    --amber: #f0b429;
+    --hot: #ff6b4a;
+    --hot-bg: rgba(255, 107, 74, 0.14);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 500px at 10% -10%, rgba(110, 168, 254, 0.12), transparent 55%),
+      radial-gradient(900px 420px at 100% 0%, rgba(61, 190, 138, 0.08), transparent 50%),
+      var(--bg);
+    color: var(--text);
+    font: 15px/1.45 "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 0.75rem 1.1rem 0.35rem;
+  }
+  .brand { min-width: 0; }
+  h1 {
+    margin: 0;
+    font-size: 1.15rem;
+    letter-spacing: 0.04em;
+  }
+  h1 span { color: var(--amber); font-weight: 650; }
+  .brand p { margin: 0.1rem 0 0; color: var(--muted); font-size: 0.82rem; }
+  .tabs { margin-left: auto; display: flex; gap: 0.35rem; }
+  .tabs button, .toolbar button, #copy {
+    background: var(--bg-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+    cursor: pointer;
+    font: inherit;
+  }
+  .tabs button.active {
+    background: #1c2a40;
+    border-color: var(--blue);
+    color: white;
+  }
+  .tabs button:focus-visible, .toolbar button:focus-visible, #q:focus-visible, #copy:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+  .view { display: flex; flex-direction: column; height: calc(100% - 58px); min-height: 0; }
+  .view[hidden] { display: none; }
+  .toolbar {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+    padding: 0.35rem 1.1rem 0.55rem;
+  }
+  #q {
+    flex: 1;
+    min-width: 8rem;
+    background: #0e1520;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.45rem 0.9rem;
+    font: inherit;
+  }
+  #count { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+  .legend {
+    display: flex;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    padding: 0 1.1rem 0.45rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+  .legend i {
+    display: inline-block;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    margin-right: 0.28rem;
+  }
+  .gotchas {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.45rem;
+    padding: 0 1.1rem 0.6rem;
+  }
+  .gotchas button {
+    text-align: left;
+    background: var(--hot-bg);
+    color: var(--text);
+    border: 1px solid rgba(255, 107, 74, 0.55);
+    border-radius: 10px;
+    padding: 0.45rem 0.6rem 0.5rem;
+    cursor: pointer;
+    font: inherit;
+  }
+  .gotchas button:hover, .gotchas button.active {
+    border-color: var(--hot);
+    background: rgba(255, 107, 74, 0.22);
+  }
+  .gotchas strong {
+    display: block;
+    color: #ffb4a4;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 0.15rem;
+  }
+  .gotchas span { display: block; font-size: 0.75rem; color: #f3d7d0; }
+  #map {
+    flex: 1;
+    width: 100%;
+    min-height: 280px;
+    background: linear-gradient(180deg, rgba(18, 25, 34, 0.2), transparent 80px);
+  }
+  .markmap-foreign.gotcha div {
+    background: var(--hot-bg);
+    border: 1px solid rgba(255, 107, 74, 0.8);
+    border-radius: 8px;
+    padding: 1px 6px;
+  }
+  .markmap-foreign.hit div {
+    box-shadow: 0 0 0 2px var(--amber);
+    border-radius: 8px;
+  }
+  .sources {
+    padding: 0.2rem 1.1rem 0.7rem;
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+  .sources a { color: #9ec1ff; }
+  #view-bot { padding: 0.2rem 1.1rem 1rem; overflow: auto; }
+  .bot-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.6rem;
+  }
+  .bot-head p { margin: 0; color: var(--muted); font-size: 0.85rem; }
+  #copy { margin-left: auto; }
+  pre {
+    margin: 0;
+    background: #0e1520;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    overflow: auto;
+    font: 13px/1.55 ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+  }
+  .c { color: #7f93a8; }
+  .k { color: #c084fc; }
+  .s { color: #8fd6b0; }
+  .n { color: #f0b429; }
+  @media (max-width: 980px) {
+    header { flex-wrap: wrap; }
+    .tabs { margin-left: 0; }
+    .gotchas { grid-template-columns: 1fr; }
+    .view { height: auto; min-height: calc(100% - 90px); }
+    #map { height: 70vh; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1><span>IBKR</span> ecosystem</h1>
+    <p>Interactive map for a Python trading bot on ib_insync. Figures are from the IBKR pages fetched 3 Oct 2026.</p>
+  </div>
+  <nav class="tabs" aria-label="Views">
+    <button type="button" id="tab-map" class="active" aria-pressed="true">Mind map</button>
+    <button type="button" id="tab-bot" aria-pressed="false">Paper bot</button>
+  </nav>
+</header>
+
+<section id="view-map" class="view">
+  <div class="toolbar">
+    <input id="q" type="search" placeholder="Search branches, secTypes, exchanges, gotchas…  (/)" autocomplete="off" aria-label="Search the mind map">
+    <span id="count" aria-live="polite"></span>
+    <button type="button" id="expand">Expand</button>
+    <button type="button" id="collapse">Branches only</button>
+    <button type="button" id="fit">Fit</button>
+  </div>
+  <div class="legend">
+    <span><i style="background:#6ea8fe"></i>Connectivity</span>
+    <span><i style="background:#3dbe8a"></i>Markets</span>
+    <span><i style="background:#c084fc"></i>Contract</span>
+    <span><i style="background:#f0b429"></i>Capabilities</span>
+    <span><i style="background:#ff6b4a"></i>Gotcha</span>
+    <span>Click a node to fold it. Drag to pan, scroll to zoom.</span>
+  </div>
+  <div class="gotchas" id="gotchas"></div>
+  <svg id="map" aria-label="IBKR mind map"></svg>
+  <p class="sources">
+    Sources: TWS API and Web API indexes, Global Access, the order-types catalog (the order-type exchanges URL now redirects there), Feature Explorer, product pages linked from Global Access, and the contract, pacing, and market-data docs those indexes point at.
+    Feature Explorer says 160 markets; Global Access says 170+. Both are shown.
+  </p>
+</section>
+
+<section id="view-bot" class="view" hidden>
+  <div class="bot-head">
+    <p>Skeleton only. Log into IB Gateway yourself. No username, password, or account id in this file. The limit is intentionally unmarketable, then cancelled before disconnect.</p>
+    <button type="button" id="copy">Copy</button>
+  </div>
+  <pre id="code"></pre>
+</section>
+
+<script type="text/template" id="md">
+# IBKR
+
+## Connectivity
+### TWS API — the ib_insync path
+- TCP socket to Trader Workstation or IB Gateway. Same server from the API's point of view
+- Message protocol. EClient sends requests. EWrapper receives them. An EReader (or Python queue) decodes the socket
+- Official libraries: Python 3.11+, Java 21, C++14, C#, Visual Basic. Testbeds ship in the API install
+- ib_insync implements that protocol. IB's docs say the original package tracks a legacy API and is no longer updated, and point people at ib_async. This map still follows ib_insync, as requested
+- Stable TWS and IB Gateway: 10.50.1e (25 Aug 2026). Latest: 10.51.1b (29 Sep 2026). Match the API build to that TWS
+- TWS API 10.49+ is GPL. Download the MSI or ZIP from IB's GitHub. pip and NuGet builds are not IB-hosted
+- Current messages are also documented as protobuf types in the TWS API index
+- Up to 32 clients on one TWS or Gateway. clientId tells them apart. clientId 0 is the master client
+- Handshake returns managed accounts, the next valid order id, and the connection time. Wait for nextValidId before sending requests
+- Error 502 means the socket never opened: API disabled, wrong port, firewall, or the host is missing from Trusted IPs
+- IB Gateway is lighter (about 40% less resource use) and has no GUI. Both are meant to restart daily; autorestart can span Sunday to Sunday, then Saturday's reset needs credentials again
+- A headless login with no GUI is not supported
+- Paper accounts exist for a funded IBKR Pro account. Matching is simulated, so fills can differ from live
+- GOTCHA · Callbacks, not REST. TWS API is event-driven callbacks on the socket. ib_insync wraps those callbacks into async / await (and a sync helper API)
+
+### Web API — REST + WebSocket
+- Parallel to the hosted apps. Two halves: Account Management, and Trading
+- Trading is free for IBKR clients: orders, live portfolio, market data, contracts, brokerage session
+- Account Management is for introducing brokers and advisors: registration, KYC, funding, statements, tax forms, trade confirms
+- HTTPS and JSON. OAuth 2.0 uses private_key_jwt (a signed client_assertion), not a client secret in the request
+- OAuth 2.0 talks directly to api.ibkr.com. Scope covers Trading and Account Management for licensed organizations, advisors, and IBrokers
+- Client Portal Gateway is the local stand-in. The campus websocket example is wss://localhost:5000/v1/api/ws
+- OAuth 1.0a (request token, live session token) is still documented beside OAuth 2.0
+- Brokerage-session websocket topics include smd (live quotes), smh (history), sbd (price ladder), sor (orders), str (trades)
+- Account summary, ledger, and P&amp;L topics do not need a brokerage session
+- Global cap: 10 requests per second per authenticated username. Extra per-route caps (history is also 50/minute; scanner params 1 per 15 minutes). 429 on breach. Repeat violator IPs can be blocked
+- Flex Web Service pulls activity queries with a portal token, separate from the trading session
+- GOTCHA · Streams die. Websocket market-data streams terminate after 15 minutes. Send a new smd request after 10 minutes or the instrument goes quiet
+
+### FIX — institutional order routing
+- Financial Information eXchange, maintained by the FIX Trading Community
+- Direct order entry. Onboarding is led by IBKR FIX Engineering
+- The pacing doc points here when a TWS API client needs more than about 50 requests per second
+- Through IB Gateway the cap is 250 messages per second. Direct FIX states no message cap, and asks for less rather than more
+
+### Excel RTD / DDE — spreadsheet formulas
+- Same TWS socket, presented as spreadsheet formulas. Three variants
+- ActiveX: full TWS API, 1 second market-data refresh, C#, needs some VB.NET. Windows only
+- DDE: full TWS API, 250 ms refresh, Java plus VB.NET, usable from Excel macros
+- RTD: market-data oriented so large sheets stay responsive, 250 ms, C# plus VB.NET. The Windows installer drops TwsRtdServer.dll
+- Excel and C# are not in the Mac or Linux API download
+
+## Markets and instruments
+### Reach
+- Global Access: clients in 200+ countries and territories, products on 170+ market centers, one platform
+- Feature Explorer states the same client footprint and 160 global markets. The two marketing pages disagree; both numbers are on the sites
+- Products named together: stocks, options, futures, currencies, bonds, and funds
+- Spot page: 100+ currency pairs on 28 currencies, quotes from 17 large FX dealers, no hidden spread
+- Account funding: 23 choices for the base currency (statements, margin translation, data fees)
+- Tradable currencies listed on Global Access: USD, EUR, GBP, JPY, AUD, CAD, CHF, CNH, HKD, SGD, SEK, NOK, DKK, NZD, MXN, ZAR, TRY, PLN, HUF, CZK, ILS, KRW, TWD, MYR, SAR, AED
+
+### Stocks — STK
+- products-stocks.php: trade stocks globally on 90+ market centers
+- Fractional shares, overnight session, and SMART routing are part of the stock workflow
+- The page does not publish a "50,000 names" count, so that figure is not shown here
+
+### ETFs — still STK
+- products-etfs.php: ETFs on 90+ market centers
+- Fee-waived program: over 150 ETFs that reimburse IBKR's commission. That is the count the page gives, not a 20,000-name universe
+- Contract secType for an ETF is STK, same as a stock
+
+### Options — OPT, and futures options — FOP
+- Option permission levels 1–4 are described on the options product page, from covered calls up to uncovered strategies
+- A contract needs expiry, strike, right (C or P), and usually multiplier and tradingClass
+- Option chains: reqSecDefOptParams on the TWS API, and a three-step chain lookup on the Web API
+- Event contracts sit beside these: ForecastEx, Kalshi, and CME, documented under TWS API event trading
+
+### Futures — FUT
+- Defined by symbol plus expiry, or by localSymbol, on the listing exchange
+- Official sample is GBL on EUREX, currency EUR, lastTradeDateOrContractMonth 202303
+- If two multipliers share an expiry, pass multiplier or the API returns error 200
+- includeExpired allows contract details and history for futures up to about two years after expiry
+- CONTFUT is historical only (TWS 971+). It cannot place orders or take live quotes
+- The futures product page does not publish a "13,000 contracts / 35 exchanges" count
+
+### Bonds — BOND
+- products-bonds.php and Global Access: a universe of over 1 million bonds
+- US government and municipals, corporates, CDs, and non-US sovereigns. Bond Search compares yields
+- reqContractDetails returns bond details on a separate callback
+
+### Mutual funds — FUND
+- The mutual-fund page body: 50,000+ funds from 500+ families, 20,000+ with no transaction fee, no custody fee, no proprietary funds
+- The page's meta description still says 40k+. The body number is the one used here
+- Families named on Global Access include Allianz, American Funds, BlackRock, Fidelity, Franklin Templeton, Invesco, MFS, PIMCO, Vanguard
+
+### Forex — CASH
+- secType CASH. Sample pair is EUR.GBP on IDEALPRO
+- 100+ pairs. Global Access lists 26 currencies; the spot page says 28
+- Interbank quotes, 1/10 pip, no markup
+- No extra market-data subscription is required
+
+### Crypto — CRYPTO
+- Execution and custody are at Paxos Trust or Zero Hash, in an account in the client's name, outside IB
+- IB is not a party to the trade and does not custody the coins. Positions are not SIPC-protected
+- Coins named on the crypto page: Bitcoin, Bitcoin Cash, Canton, Cardano, Chainlink, Dogecoin, Ethereum, Lido DAO, Litecoin, Monad, NEAR, Pax Gold, Plasma, Ripple, Solana, Sui, Uniswap
+- Sample contract: ETH on PAXOS, currency USD, secType CRYPTO
+- Also offered around crypto: ETPs, futures, and options on futures. Those are different secTypes
+- No extra market-data subscription is required for the spot coins
+
+### Also on the platform
+- Warrants use secType WAR. The order-type catalog has a Warrants product filter
+- Combos and spreads use secType BAG, with combo legs
+- Indexes are IND. Commodities are CMDTY. News headlines can be requested as NEWS
+- CFDs are secType CFD. The sample is IBDE30, EUR, exchange SMART
+- US spot gold is its own product page (metals), separate from crypto
+- Hedge funds and prediction / event markets are in the product menu next to the instrument pages
+- Structured products show up as a platform-matrix row on the trading-platforms page
+
+### Exchanges by region
+- The order-type exchanges URL now redirects to the order-types catalog. The regional rows below are the North America / Europe / Asia-Pacific tables that URL used to render for specific order types
+- Market-on-open table, North America: NYSE, NASDAQ, NYSE Arca, NYSE American, ArcaEdge, BATS, INET, CBOE, CBOE C2, MIAX
+- Volatility and relative tables add North America: CME (floor), CBOT (floor), NYSE Liffe, BOX, NASDAQOM, PHLX
+- Delay table names the Globex venues separately: CME, CBOT, NYMEX, COMEX, plus ICE US as NYBOT
+- Europe, market-on-open: LSE, XETRA (IBIS), SWX, Borsa Italiana (BVME), Euronext France (SBF), Euronext NL stocks (AEB), Swedish Stock Exchange, VIRT-X
+- Europe, derivatives tables: Euronext Brussels, Euronext NL Derivatives, ICEEU, Euronext France (MONEP)
+- Futures sample exchange: EUREX
+- Asia-Pacific: SEHK (Hong Kong), SGX (Singapore), TSEJ (Tokyo), ASX (Australia)
+- OSE is the exception called out in the live-data limits: API users get 15-minute delayed streaming only, not live or historical bars
+- GOTCHA · Futures skip SMART. Futures and futures options do not use SMART routing. Pass the native exchange (CME, CBOT, NYMEX, COMEX, EUREX, and the rest) or the data comes back empty. Stock samples do use SMART, plus primaryExchange when the symbol is ambiguous. CFDs in the samples also use SMART
+
+## Contract object
+### Every request hangs off one contract
+- Market data, orders, executions, portfolio lines, and some news calls all take a Contract
+- TWS matches that object to a single candidate. More than one match is an ambiguity error
+- Minimum without a conId: symbol, secType, exchange, primaryExchange, and currency
+- Minimum with an id: conId plus exchange
+- Derivatives add lastTradeDateOrContractMonth, strike, right, multiplier, tradingClass
+- YYYYMM means contract month. YYYYMMDD means last trade date
+- right is P, PUT, C, or CALL. tradingClass separates monthlies from weeklies
+- localSymbol is the exchange symbol. For a future it can replace the expiry. For an option it is the OCC symbol
+- secIdType / secId accept ISIN, CUSIP, or FIGI
+- includeExpired is for expired futures only
+
+### secType values
+- From the Contract reference: STK, OPT, FUT, IND, FOP, CASH, BAG, WAR, BOND, CMDTY, NEWS, FUND
+- STK covers stocks and ETFs
+- From the basic-contract samples: CFD, CRYPTO, and CONTFUT (history only)
+- BAG is a combo. Combo legs are a separate list
+
+### Best practice
+- Resolve the contract first, then request data with conId plus exchange
+- conIds are static. The docs' example is 265598 for the AAPL stock
+- reqContractDetails is the lookup. For a stock, TWS caches the result so later orders that send conId plus exchange go out faster
+- Web API has the same idea: search by symbol, then call by conid
+- Right-click a symbol in TWS, Financial Instrument Info, to read the fields before coding them
+
+## Capabilities
+### Market data
+- Live top of book: reqMktData. One request streams until you cancel it. Only the open counts toward pacing
+- Snapshots: one-shot if you already subscribe. Regulatory snapshots are a separate paid tick, documented at $0.01 each
+- Historical bars: duration, bar size, and whatToShow (TRADES, MIDPOINT, BID, ASK, BID_ASK, ADJUSTED_LAST, and others)
+- Tick-by-tick, and historical time and sales
+- Level 2: reqMktDepth, plus a list of depth exchanges
+- Real-time 5-second bars
+- Generic ticks for halted, shortable, RT volume, dividends, and more. Not every tick exists for every contract
+- Market data types: 1 live, 2 frozen, 3 delayed (about 15–20 minutes), 4 delayed-frozen. Delayed does not cover tick-by-tick
+- Web API equivalents: snapshot REST, historical REST, and smd / smh on the websocket
+- GOTCHA · 100 lines, about 50 requests per second. Default market data lines = 100, and that floor never drops below 100. Pacing is lines divided by 2, so the default is 50 requests per second. Quote boosters, or higher commissions and equity, raise the line count and therefore the cap. Lines are shared with quotes already open inside TWS. Break the cap three times with "reject over the limit" turned on and the session drops. A live quote also needs a market-data subscription for that user. Forex and crypto are the exception. Error 354 means the user is not subscribed. Delayed data may still be offered
+
+### Orders
+- Basic types on the order catalog: Market (MKT), Limit (LMT), Stop (STP), Stop Limit
+- Algos on that catalog: TWAP, VWAP (Best-Efforts), Arrival Price, Percent of Volume, Dark Ice
+- Also first-party: Adaptive, Accumulate / Distribute, Close Price, Minimize Impact, Balance Impact and Risk
+- Times in force include DAY plus GTC, GTD, IOC, FOK, OPG, GAT. GTC is not supported for IBAlgos
+- Attach profit-taker and stop-loss, brackets, and OCA groups
+- Combos and spreads are BAG orders. WhatIf previews margin before you send
+- Overnight and OVERNIGHT+DAY are separate session instructions
+- Modify by sending the same order id. Cancel one order, or cancel every open order
+- Some types are simulated when the exchange lacks a native version. Stops are the usual example, and a bad print can trigger them
+- Third-party algos on the same page: Fox River and Quantitative Brokers suites
+- The catalog itself says IBKR Pro clients have access to over 100 order types, algos, and tools
+
+### Portfolio and account
+- Positions, positions by model, and portfolio values
+- Account summary tags and streaming account updates
+- P&amp;L for the account and for a single position
+- Executions and the commission-and-fees report
+- Open orders, completed orders, and order status
+- Web API mirrors this: portfolio, ledger, positions by conid, trades, and live order updates
+- Managed accounts, family codes, and advisor allocations (groups, profiles, models) are in the TWS API index
+
+### Scanners, news, chains, WhatIf
+- Market scanner: request the parameter list, then subscribe. Web API exposes the same iserver scanner
+- News: providers, live headlines, broad tape, historical headlines, full articles
+- Option chains via reqSecDefOptParams, then a normal contract for each strike
+- WhatIf / preview order returns margin, commission, and equity impact without sending the order
+- Wall Street Horizon corporate-event metadata is a separate request family
+- Display groups let an API client push a symbol into a TWS window
+</script>
+
+<script type="module">
+import { Transformer } from "https://cdn.jsdelivr.net/npm/markmap-lib@0.18.12/+esm";
+import { Markmap } from "https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/+esm";
+
+const COLORS = ["#6ea8fe", "#3dbe8a", "#c084fc", "#f0b429"];
+const GOTCHAS = [
+  {
+    title: "Futures skip SMART",
+    text: "FUT and FOP need the native exchange — CME, CBOT, NYMEX, COMEX, EUREX — or the quote comes back empty.",
+    query: "Futures skip SMART"
+  },
+  {
+    title: "100 lines → 50 / sec",
+    text: "Default market-data lines are 100. Pacing is lines ÷ 2. Quote boosters raise the ceiling.",
+    query: "100 lines"
+  },
+  {
+    title: "Callbacks, not REST",
+    text: "TWS API is a socket of callbacks. ib_insync turns that into async / await.",
+    query: "Callbacks, not REST"
+  },
+  {
+    title: "Web streams die",
+    text: "Web API smd quotes stop after about 15 minutes. Re-request by 10 minutes.",
+    query: "Streams die"
+  },
+  {
+    title: "Subscribe per user",
+    text: "Live quotes need a market-data subscription on that username. Forex and crypto are the exception.",
+    query: "subscription for that user"
+  }
+];
+
+const md = document.getElementById("md").textContent;
+const transformer = new Transformer();
+const { root } = transformer.transform(md);
+const svg = document.getElementById("map");
+const mm = Markmap.create(svg, {
+  duration: 280,
+  maxWidth: 340,
+  paddingX: 12,
+  spacingVertical: 6,
+  fitRatio: 0.92,
+  color: (node) => {
+    const text = node.content || "";
+    if (text.includes("GOTCHA")) return "#ff6b4a";
+    const path = (node.state && node.state.path) || "";
+    const branch = Number(String(path).split(".")[1] || 0);
+    return COLORS[branch] || COLORS[0];
+  },
+  colorFreezeLevel: 2
+}, root);
+
+const qInput = document.getElementById("q");
+const countEl = document.getElementById("count");
+let openDepth = 2;
+let query = "";
+
+function clone(node) {
+  return {
+    content: node.content,
+    children: (node.children || []).map(clone),
+    payload: { ...(node.payload || {}) }
+  };
+}
+
+function plain(html) {
+  const d = document.createElement("div");
+  d.innerHTML = html || "";
+  return d.textContent || "";
+}
+
+function applyFold(node, depth, pred) {
+  const kids = node.children || [];
+  let self = pred(node);
+  let below = false;
+  for (const child of kids) {
+    if (applyFold(child, depth + 1, pred)) below = true;
+  }
+  const keep = !query || self || below || depth === 0;
+  node.payload = node.payload || {};
+  if (query) node.payload.fold = keep ? (below ? 0 : 1) : 1;
+  else node.payload.fold = depth >= openDepth && kids.length ? 1 : 0;
+  if (depth === 0) node.payload.fold = 0;
+  return self || below;
+}
+
+function decorate() {
+  const needle = query.trim().toLowerCase();
+  document.querySelectorAll("#map .markmap-foreign").forEach((el) => {
+    const text = el.textContent || "";
+    el.classList.toggle("gotcha", text.includes("GOTCHA"));
+    el.classList.toggle("hit", Boolean(needle) && text.toLowerCase().includes(needle));
+  });
+}
+
+async function render() {
+  const data = clone(root);
+  const needle = query.trim().toLowerCase();
+  let hits = 0;
+  applyFold(data, 0, (node) => {
+    const ok = Boolean(needle) && plain(node.content).toLowerCase().includes(needle);
+    if (ok) hits += 1;
+    return ok;
+  });
+  await mm.setData(data);
+  decorate();
+  countEl.textContent = needle ? (hits ? hits + " match" + (hits === 1 ? "" : "es") : "No matches") : "";
+  if (needle && hits) mm.fit();
+}
+
+const mo = new MutationObserver(() => decorate());
+mo.observe(svg, { subtree: true, childList: true });
+
+document.getElementById("expand").addEventListener("click", () => {
+  query = "";
+  qInput.value = "";
+  openDepth = 99;
+  render();
+});
+document.getElementById("collapse").addEventListener("click", () => {
+  query = "";
+  qInput.value = "";
+  openDepth = 1;
+  render().then(() => mm.fit());
+});
+document.getElementById("fit").addEventListener("click", () => mm.fit());
+qInput.addEventListener("input", () => {
+  query = qInput.value;
+  render().then(() => {
+    if (!query.trim()) mm.fit();
+  });
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "/" && document.activeElement !== qInput && document.getElementById("view-map").hidden === false) {
+    ev.preventDefault();
+    qInput.focus();
+  }
+});
+
+const rail = document.getElementById("gotchas");
+for (const g of GOTCHAS) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.innerHTML = "<strong></strong><span></span>";
+  btn.querySelector("strong").textContent = g.title;
+  btn.querySelector("span").textContent = g.text;
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#gotchas button").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    show("map");
+    qInput.value = g.query;
+    query = g.query;
+    render();
+  });
+  rail.appendChild(btn);
+}
+
+function show(which) {
+  const map = which === "map";
+  document.getElementById("view-map").hidden = !map;
+  document.getElementById("view-bot").hidden = map;
+  document.getElementById("tab-map").classList.toggle("active", map);
+  document.getElementById("tab-bot").classList.toggle("active", !map);
+  document.getElementById("tab-map").setAttribute("aria-pressed", String(map));
+  document.getElementById("tab-bot").setAttribute("aria-pressed", String(!map));
+  if (map) requestAnimationFrame(() => mm.fit());
+}
+document.getElementById("tab-map").addEventListener("click", () => show("map"));
+document.getElementById("tab-bot").addEventListener("click", () => show("bot"));
+
+const PYTHON = `# Minimal paper-trading skeleton for ib_insync.
+# Talks only to a local IB Gateway. Do not put a login or an account id in this file.
+# Gateway must already be logged into the paper user, with the API socket enabled
+# and 127.0.0.1 listed under Trusted IPs. Error 502 means that socket is not open.
+#
+# IB's own docs say the original ib_insync package tracks a legacy API and is no
+# longer updated; ib_async is the maintained fork. This file stays on ib_insync
+# because that is the library this map is written for.
+
+import asyncio
+
+from ib_insync import IB, LimitOrder, Stock
+
+# Usual IB Gateway paper socket. TWS API samples in the docs call eConnect on 7497,
+# which is the usual TWS paper port. Confirm the number in
+# Gateway: Configure > Settings > API > Socket port.
+HOST = "127.0.0.1"
+PORT = 4002
+CLIENT_ID = 7  # any id except one already in use; 0 is the master client
+
+
+async def main() -> None:
+    ib = IB()
+
+    # Opens the TCP socket and finishes the version handshake.
+    # ib_insync waits until nextValidId, which is the "connection is usable" callback.
+    await ib.connectAsync(HOST, PORT, clientId=CLIENT_ID)
+
+    # A stock is secType STK. SMART is correct here. Do not copy SMART onto a future.
+    contract = Stock("AAPL", "SMART", "USD")
+
+    # qualify fills conId and the listing exchange. Later calls should keep that conId.
+    qualified = await ib.qualifyContractsAsync(contract)
+    if not qualified:
+        print("No contract matched. Check the symbol, then disconnect.")
+        ib.disconnect()
+        return
+    contract = qualified[0]
+    print(f"qualified conId={contract.conId} exchange={contract.exchange}")
+
+    # Streaming top of book. Needs a market-data subscription on this username.
+    # Forex (CASH) and crypto (CRYPTO) are the documented exceptions.
+    ticker = ib.reqMktData(contract, "", False, False)
+    await asyncio.sleep(2)
+    print(f"bid={ticker.bid} ask={ticker.ask} last={ticker.last}")
+
+    # One share, limit far under the market, so the paper order should rest, not fill.
+    # Change the price only if you intend to exercise a paper fill.
+    order = LimitOrder("BUY", 1, 1.00)
+    trade = ib.placeOrder(contract, order)
+
+    def on_fill(trade, fill) -> None:
+        exec_ = fill.execution
+        print(f"fill {exec_.shares} @ {exec_.price} execId={exec_.execId}")
+
+    # fillEvent is the execution callback. statusEvent is Submitted, Filled, Cancelled.
+    trade.fillEvent += on_fill
+    trade.statusEvent += lambda t: print(f"status {t.orderStatus.status}")
+
+    print(f"order status {trade.orderStatus.status} id {trade.order.orderId}")
+    await asyncio.sleep(3)
+
+    # Cancel the resting order so the paper book is left clean, then drop the quote.
+    ib.cancelOrder(order)
+    await asyncio.sleep(1)
+    ib.cancelMktData(contract)
+    ib.disconnect()
+    print("disconnected")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+`;
+
+function highlight(src) {
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const kw = /\b(?:import|from|async|await|def|return|if|not|in|lambda|None|False|True)\b/g;
+  return src.split("\n").map((line) => {
+    let out = "";
+    let i = 0;
+    while (i < line.length) {
+      if (line[i] === "#") {
+        out += `<span class="c">${esc(line.slice(i))}</span>`;
+        break;
+      }
+      if (line[i] === '"' || line[i] === "'") {
+        const q = line[i];
+        let j = i + 1;
+        while (j < line.length && line[j] !== q) {
+          if (line[j] === "\\") j += 1;
+          j += 1;
+        }
+        j = Math.min(line.length, j + 1);
+        out += `<span class="s">${esc(line.slice(i, j))}</span>`;
+        i = j;
+        continue;
+      }
+      let j = i;
+      while (j < line.length && line[j] !== "#" && line[j] !== '"' && line[j] !== "'") j += 1;
+      kw.lastIndex = 0;
+      out += esc(line.slice(i, j))
+        .replace(kw, '<span class="k">$&</span>')
+        .replace(/\b\d+(?:\.\d+)?\b/g, '<span class="n">$&</span>');
+      i = j;
+    }
+    return out;
+  }).join("\n");
+}
+
+document.getElementById("code").innerHTML = highlight(PYTHON);
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(PYTHON);
+    document.getElementById("copy").textContent = "Copied";
+  } catch (err) {
+    document.getElementById("copy").textContent = "Copy failed";
+  }
+  setTimeout(() => { document.getElementById("copy").textContent = "Copy"; }, 1400);
+});
+
+render().then(() => mm.fit());
+</script>
+</body>
+</html>
